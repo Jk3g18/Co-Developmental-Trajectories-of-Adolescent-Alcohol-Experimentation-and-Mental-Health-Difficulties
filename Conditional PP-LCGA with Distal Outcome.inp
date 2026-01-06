@@ -1,0 +1,128 @@
+TITLE:
+Conditional PP-LCGA with Distal Outcome;
+DATA:
+FILE IS
+  "Step1_4class_ZIP.dat";
+
+VARIABLE:
+  NAMES = MALE FEMALE WHITE BLACK ASIAN MIXED OTHERRACE HISPANIC AGE_T1 LOWGED GED 
+COLLEGE BACHELOR POSTGRAD FINANDIFF PRENATAL POSALCX NEGALCX DISTALD
+PEERDRINK PARALC PARDRUG PARMH PERCHARM PREVSUBUSE ACE PARMON PARWARM FAMCONFLICT 
+BAS_FUN BIS_SUM BAS_RR BAS_DRV UPS_LACK UPS_NEGU UPS_SENS UPS_POSU UPS_PERS CMOD 
+ID SITESTRATA FAMILYCLUSTER; 
+
+
+USEVARIABLES = MALE BLACK ASIAN MIXED HISPANIC OTHERRACE CMOD GED COLLEGE BACHELOR POSTGRAD 
+               PRENATAL PARALC PARDRUG PARMH FINANDIFF AGE_T1 PARWARM PARMON FAMCONFLICT 
+               POSALCX NEGALCX PEERDRINK PERCHARM PREVSUBUSE NLE BAS_FUN BIS_SUM BAS_RR 
+               BAS_DRVm UPS_LACK UPS_NEGU UPS_SENS UPS_POSU UPS_PERS DISTALD;
+
+NOMINAL = CMOD;
+CATEGORICAL = DISTALD;
+MISSING ARE ALL (9999);
+IDVARIABLE = ID;	
+STRATIFICATION = SITESTRATA;
+CLUSTER = FAMILYCLUSTER;
+CLASSES= c(4);
+
+DEFINE:
+Center MALE (grandmean);
+Center BLACK (grandmean);
+Center MIXED (grandmean);
+Center ASIAN (grandmean);
+Center HISPANIC (grandmean);
+Center OTHERRACE (grandmean);
+Center FINANDIFF (grandmean);
+Center PRENATAL (grandmean);
+Center POSALCX (grandmean);
+Center NEGALCX (grandmean);
+Center PEERDRINK (grandmean);
+Center PERCHARM (grandmean);
+Center AGE_T1 (grandmean);
+Center PARALC (grandmean);
+Center PARDRUG (grandmean);
+Center PARMH (grandmean);
+Center PREVSUBUSE (grandmean);
+Center NLE (grandmean);
+Center PARWARM (grandmean);
+Center FAMCONFLICT (grandmean);
+Center BAS_FUN (grandmean);
+Center BIS_SUM (grandmean);
+Center BAS_RR (grandmean);
+Center BAS_DRV (grandmean);
+Center UPS_LACK (grandmean);
+Center UPS_NEGU (grandmean);
+Center UPS_SENS (grandmean);
+Center UPS_POSU (grandmean);
+Center UPS_PERS (grandmean);
+Center GED (grandmean);
+Center COLLEGE (grandmean);
+Center POSTGRAD (grandmean);
+Center PAR_MON (grandmean);
+
+ANALYSIS:
+ALGORITHM = INTEGRATION;
+ESTIMATOR IS MLR;
+TYPE = COMPLEX MIXTURE;
+STARTS = 1000 250;
+STITERATIONS = 20;
+PROCESSOR = 4;
+
+MODEL:
+  %OVERALL%
+          C ON MALE BLACK MIXED OTHERRACE HISPANIC AGE_T1 PRENATAL GED COLLEGE BACHELOR POSTGRAD 
+               PARALC PARDRUG PARMH FINANDIFF PARWARM PARMON FAMCONFLICT POSALCX NEGALCX PERCHARM 
+               PEERDRINK PREVSUBUSE NLE BAS_FUN BIS_SUM BAS_RR BAS_DRV UPS_LACK UPS_NEGU UPS_SENS 
+               UPS_POSU UPS_PERS;
+
+    DISTALD ON MALE BLACK MIXED OTHERRACE HISPANIC AGE_T1 PRENATAL GED COLLEGE BACHELOR POSTGRAD 
+               PARALC PARDRUG PARMH FINANDIFF PARWARM PARMON FAMCONFLICT POSALCX NEGALCX PERCHARM 
+               PEERDRINK PREVSUBUSE NLE BAS_FUN BIS_SUM BAS_RR BAS_DRV UPS_LACK UPS_NEGU UPS_SENS 
+               UPS_POSU UPS_PERS;
+
+    %C#1% !Elevated EXT, High Sip;
+        [CMOD#1@2.154 CMOD#2@-2.635 CMOD#3@-1.573];
+            [DISTALD$1] (d1);
+    %C#2% !High Co-occurring INT/EXT, High Sip;
+        [CMOD#1@3.394 CMOD#2@6.884 CMOD#3@2.264];
+            [DISTALD$1] (d2);
+    %C#3% !Primarily INT, Low Sip;
+        [CMOD#1@-0.243 CMOD#2@-2.15 CMOD#3@3.098];
+            [DISTALD$1] (d3);
+    %C#4% !Low Co-occurring INT/EXT, Low Sip;
+        [CMOD#1@-4.384 CMOD#2@-13.8 CMOD#3@-5.695];
+            [DISTALD$1] (d4);
+
+MODEL TEST:
+0 = d4 - d1;
+0 = d4 - d2;
+0 = d4 - d3;
+
+
+MODEL CONSTRAINT:
+NEW(diff12 diff14 diff24 diff34);
+diff12 = d1 - d2;
+diff14 = d1 - d4;
+diff24 = d2 - d4;
+diff34 = d3 - d4;
+
+NEW(prob1 prob2 prob3 prob4 odds1 odds2 odds3 odds4);
+prob1 = 1/(1+exp(d1));
+prob2 = 1/(1+exp(d2));
+prob3 = 1/(1+exp(d3));
+prob4 = 1/(1+exp(d4));
+
+odds1 = prob1/(1-prob1);
+odds2 = prob2/(1-prob2);
+odds3 = prob3/(1-prob3);
+odds4 = prob4/(1-prob4);
+
+
+NEW (OR14 OR24 OR34 OR21 OR12);
+OR14 = odds1/odds4;
+OR24 = odds2/odds4;
+OR34 = odds3/odds4;
+OR21 = odds2/odds1;
+OR12 = odds1/odds2;
+
+OUTPUT: CINTERVAL STANDARDIZED SAMPSTAT TECH7;
